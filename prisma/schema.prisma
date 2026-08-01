@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SEEKER
+  LISTER
+  ADMIN
+}
+
+enum RoomType {
+  SINGLE_ROOM
+  SUBLET
+  FULL_FLAT
+}
+
+enum ListingStatus {
+  ACTIVE
+  RENTED
+}
+
+enum TransactionStatus {
+  HELD
+  RELEASED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  phone        String?
+  nidVerified  Boolean  @default(false) @map("nid_verified")
+  avgRating    Float    @default(0) @map("avg_rating")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  listings              Listing[]
+  sentMessages          Message[]      @relation("SentMessages")
+  receivedMessages      Message[]      @relation("ReceivedMessages")
+  reviewsGiven          Review[]       @relation("ReviewsGiven")
+  reviewsReceived       Review[]       @relation("ReviewsReceived")
+  seekerTransactions    Transaction[]  @relation("SeekerTransactions")
+  listerTransactions    Transaction[]  @relation("ListerTransactions")
+  savedListings         SavedListing[]
+  reports               Report[]       @relation("ReporterReports")
+  reportsAgainst        Report[]       @relation("ReportedUserReports")
+  conversationsAsSeeker Conversation[] @relation("SeekerConversations")
+  conversationsAsLister Conversation[] @relation("ListerConversations")
+
+  @@map("users")
+}
+
+model Listing {
+  id               String        @id @default(cuid())
+  listerId         String        @map("lister_id")
+  title            String
+  description      String
+  rent             Int
+  areaName         String        @map("area_name")
+  latitude         Float
+  longitude        Float
+  roomType         RoomType      @map("room_type")
+  bachelorFriendly Boolean       @default(true) @map("bachelor_friendly")
+  photos           Json             @default("[]")
+  videoUrl         String?       @map("video_url")
+  status           ListingStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  lister        User           @relation(fields: [listerId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  reviews       Review[]
+  transactions  Transaction[]
+  savedBy       SavedListing[]
+  reports       Report[]
+  conversations Conversation[]
+
+  @@map("listings")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  listingId String   @map("listing_id")
+  seekerId  String   @map("seeker_id")
+  listerId  String   @map("lister_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  listing  Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  seeker   User      @relation("SeekerConversations", fields: [seekerId], references: [id])
+  lister   User      @relation("ListerConversations", fields: [listerId], references: [id])
+  messages Message[]
+
+  @@unique([listingId, seekerId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  receiverId     String   @map("receiver_id")
+  listingId      String   @map("listing_id")
+  content        String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id])
+  receiver     User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  listing      Listing      @relation(fields: [listingId], references: [id])
+
+  @@map("messages")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  reviewerId String   @map("reviewer_id")
+  revieweeId String   @map("reviewee_id")
+  listingId  String   @map("listing_id")
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  listing  Listing @relation(fields: [listingId], references: [id])
+
+  @@unique([reviewerId, revieweeId, listingId])
+  @@map("reviews")
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  listingId     String            @map("listing_id")
+  seekerId      String            @map("seeker_id")
+  listerId      String            @map("lister_id")
+  advanceAmount Int               @map("advance_amount")
+  status        TransactionStatus @default(HELD)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  listing Listing @relation(fields: [listingId], references: [id])
+  seeker  User    @relation("SeekerTransactions", fields: [seekerId], references: [id])
+  lister  User    @relation("ListerTransactions", fields: [listerId], references: [id])
+
+  @@map("transactions")
+}
+
+model SavedListing {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  listingId String   @map("listing_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@map("saved_listings")
+}
+
+model Report {
+  id             String   @id @default(cuid())
+  reporterId     String   @map("reporter_id")
+  listingId      String?  @map("listing_id")
+  reportedUserId String?  @map("reported_user_id")
+  reason         String
+  status         String   @default("pending")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  reporter     User     @relation("ReporterReports", fields: [reporterId], references: [id])
+  listing      Listing? @relation(fields: [listingId], references: [id])
+  reportedUser User?    @relation("ReportedUserReports", fields: [reportedUserId], references: [id])
+
+  @@map("reports")
+}
