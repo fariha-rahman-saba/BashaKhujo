@@ -97,3 +97,4 @@ Deploy to **Railway** or **Render** (Vercel alone doesn't support the custom Soc
 ## Author
 
 Built by **Fariha Rahman Saba** as an Ideathon submission for B-JET Cohort 16.
+**Live Website Link:** https://bashakhujo.onrender.com/ (Note: hosted on a free tier, so the first load may take up to a minute to wake up.)
