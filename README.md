@@ -96,4 +96,4 @@ Deploy to **Railway** or **Render** (Vercel alone doesn't support the custom Soc
 
 ## Author
 
-Built by **Saba** as an Ideathon submission for B-JET Cohort 16.
+Built by **Fariha Rahman Saba** as an Ideathon submission for B-JET Cohort 16.
